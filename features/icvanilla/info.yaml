@@ -1,0 +1,9 @@
+description: "OpenStack baremetal platform (cloud-init, metal kernel)"
+type: platform
+features:
+  include:
+    - metal
+  exclude:
+    - sap
+    - firewall
+    - _readonly
