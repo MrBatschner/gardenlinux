@@ -461,3 +461,8 @@ def non_container(testconfig):
     features = testconfig.get("features", [])
     if "container" in features:
         pytest.skip('test is not supported on container')
+
+@pytest.fixture
+def with_nvme(testconfig, iaas):
+    if iaas != 'azure' or testconfig.get('use_nvme') != True:
+        pytest.skip("NVMe test not supported on this platform/machine type")

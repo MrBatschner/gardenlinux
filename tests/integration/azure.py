@@ -24,6 +24,10 @@ from azure.mgmt.resource import (
     SubscriptionClient
 )
 
+from azure.mgmt.compute.models import (
+    GalleryImageFeature
+)
+
 from azure.mgmt.storage.models import StorageAccountCheckNameAvailabilityParameters
 from azure.storage.blob import BlobClient
 
@@ -404,8 +408,13 @@ class AZURE:
             cfg['gallery_image_name'] = f"galleryimage{re.sub('-', '', test_name)}"
         if not 'gallery_image_version_name' in cfg:
             cfg['gallery_image_version_name'] = "0.0.0"
+        if not 'use_nvme' in cfg:
+            cfg['use_nvme'] = False
         if not 'vm_size' in cfg:
-            cfg['vm_size'] = "Standard_D4_v4"
+            if cfg['use_nvme']:
+                cfg['vm_size'] = "Standard_D4als_v6"
+            else:
+                cfg['vm_size'] = "Standard_D4_v4"
         if not 'accelerated_networking' in cfg:
             cfg['accelerated_networking'] = False
         if not 'nsg_name' in cfg:
@@ -660,23 +669,30 @@ class AZURE:
                 }
             ).result()
 
+            gallery_image_definition_flags = {
+                'location': self._resourcegroup.location,
+                'os_type': 'Linux',
+                'os_state': 'Generalized',
+                'hyper_v_generation': self.config['hyper_v_generation'],
+                'architecture': self.config['architecture'],
+                'identifier': {
+                    'publisher': 'Gardenlinux',
+                    'offer': 'Gardenlinux',
+                    'sku': 'Gardenlinux'
+                }
+            }
+
+            if self.config['use_nvme']:
+                gallery_image_definition_flags['features'] = [
+                    GalleryImageFeature(name='DiskControllerTypes', value='SCSI, NVMe')
+                ]
+
             self.logger.info(f"Creating {gallery_image_definition=}...")
             _ = self.cclient.gallery_images.begin_create_or_update(
                 resource_group_name = self._resourcegroup.name,
                 gallery_name = gallery_name,
                 gallery_image_name = gallery_image_definition,
-                gallery_image = {
-                    'location': self._resourcegroup.location,
-                    'os_type': 'Linux',
-                    'os_state': 'Generalized',
-                    'hyper_v_generation': self.config['hyper_v_generation'],
-                    'architecture': self.config['architecture'],
-                    'identifier': {
-                        'publisher': 'Gardenlinux',
-                        'offer': 'Gardenlinux',
-                        'sku': 'Gardenlinux'
-                    }
-                }
+                gallery_image = gallery_image_definition_flags
             ).result()
 
             self.logger.info(f"Creating {gallery_image_version=} in {gallery_image_definition=} from {image_name=}...")
